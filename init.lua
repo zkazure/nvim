@@ -129,7 +129,7 @@ vim.opt.ignorecase = true
 vim.opt.smartcase = true
 
 -- Keep signcolumn on by default
-vim.opt.signcolumn = 'no'
+vim.opt.signcolumn = 'yes'
 
 -- Decrease update time
 vim.opt.updatetime = 250
@@ -246,66 +246,149 @@ require('lazy').setup({
 
   -- 注意：已移除 which-key、telescope、LSP 和 autoformat 插件，只保留核心功能
 
-  { -- Autocompletion
-    'hrsh7th/nvim-cmp',
-    event = 'InsertEnter',
-    dependencies = {
-      -- Snippet Engine & its associated nvim-cmp source
-      {
-        'L3MON4D3/LuaSnip',
-        build = (function()
-          -- Build Step is needed for regex support in snippets.
-          -- This step is not supported in many windows environments.
-          -- Remove the below condition to re-enable on windows.
-          if vim.fn.has 'win32' == 1 or vim.fn.executable 'make' == 0 then
-            return
-          end
-          return 'make install_jsregexp'
-        end)(),
-        dependencies = {},
-      },
-      'saadparwaiz1/cmp_luasnip',
-
-      -- Adds other completion capabilities.
-      --  nvim-cmp does not ship with all sources by default. They are split
-      --  into multiple repos for maintenance purposes.
-      'hrsh7th/cmp-path',
-    },
+  -- 添加 coc.nvim 作为更强大的代码补全引擎
+  {
+    'neoclide/coc.nvim',
+    branch = 'release',
+    event = 'VimEnter',
     config = function()
-      -- See `:help cmp`
-      local cmp = require 'cmp'
-      local luasnip = require 'luasnip'
-      luasnip.config.setup {}
-
-      cmp.setup {
-        snippet = {
-          expand = function(args)
-            luasnip.lsp_expand(args.body)
-          end,
-        },
-        completion = { completeopt = 'menu,menuone,noinsert' },
-
-        -- 使用最基本的按键映射设置
-        mapping = cmp.mapping.preset.insert {
-          -- 使用默认的按键映射，移除自定义设置
-        },
-        sources = {
-          { name = 'luasnip' },
-          { name = 'path' },
-        },
+      -- 基本设置
+      vim.g.coc_global_extensions = {
+        -- 基础插件
+        'coc-json',
+        'coc-pairs',  -- 提供括号自动补全，包括<>
+        'coc-snippets',
+        
+        -- 各种主流语言支持
+        'coc-clangd',   -- C/C++
+        'coc-pyright',  -- Python
+        'coc-tsserver', -- JavaScript/TypeScript
+        'coc-rust-analyzer', -- Rust
+        'coc-go',       -- Go
+        'coc-java',     -- Java
+        'coc-html',     -- HTML
+        'coc-css',      -- CSS
+        'coc-sh',       -- Shell 脚本
+        'coc-yaml',     -- YAML
+        'coc-xml',      -- XML
+        'coc-lua',      -- Lua
+        'coc-vimlsp',   -- VimL
       }
-    end,
+      
+      -- 避免补全窗口过快关闭
+      vim.opt.updatetime = 300
+      
+      -- 设置Tab键操作补全菜单
+      vim.api.nvim_set_keymap('i', '<TAB>', 'coc#pum#visible() ? coc#pum#next(1) : "<TAB>"', {expr = true})
+      vim.api.nvim_set_keymap('i', '<S-TAB>', 'coc#pum#visible() ? coc#pum#prev(1) : "<C-h>"', {expr = true})
+      
+      -- 回车确认选中
+      vim.api.nvim_set_keymap('i', '<cr>', 'coc#pum#visible() ? coc#pum#confirm() : "<CR>"', {expr = true})
+      
+      -- 设置跳转到定义等功能
+      vim.api.nvim_set_keymap('n', 'gd', '<Plug>(coc-definition)', {silent = true})
+      vim.api.nvim_set_keymap('n', 'gy', '<Plug>(coc-type-definition)', {silent = true})
+      vim.api.nvim_set_keymap('n', 'gi', '<Plug>(coc-implementation)', {silent = true})
+      vim.api.nvim_set_keymap('n', 'gr', '<Plug>(coc-references)', {silent = true})
+      
+      -- 显示文档
+      vim.api.nvim_set_keymap('n', 'K', ':call CocActionAsync("doHover")<CR>', {silent = true, noremap = true})
+      
+      -- 重命名
+      vim.api.nvim_set_keymap('n', '<leader>rn', '<Plug>(coc-rename)', {silent = true})
+      
+      -- 确保 coc-pairs 配置正确
+      local function setup_coc_pairs()
+        vim.fn.coc_config_hook = function()
+          -- 这个函数会在合适的时候执行
+          vim.fn.CocActionAsync('runCommand', 'pairs.enableCharacters', { '<', '>' })
+        end
+      end
+      
+      vim.defer_fn(setup_coc_pairs, 1000)
+      
+      -- 创建全局 coc 配置文件
+      local home_dir = vim.fn.expand('~')
+      local coc_config_path = home_dir .. '/.config/nvim/coc-settings.json'
+      
+      -- 如果配置文件不存在，创建一个基本配置
+      if vim.fn.filereadable(coc_config_path) == 0 then
+        local config = [[
+{
+  "suggest.noselect": false,
+  "suggest.enablePreselect": false,
+  "suggest.triggerAfterInsertEnter": true,
+  "suggest.autoTrigger": "always",
+  "suggest.timeout": 5000,
+  "suggest.enablePreview": true,
+  "suggest.floatEnable": true,
+  "suggest.detailField": "preview",
+  "suggest.snippetIndicator": "►",
+  "suggest.triggerCompletionWait": 100,
+  "suggest.echodocSupport": true,
+  "coc.preferences.formatOnSaveFiletypes": [
+    "javascript",
+    "typescript",
+    "typescriptreact",
+    "json",
+    "python",
+    "go",
+    "rust"
+  ],
+  "diagnostic.errorSign": "✘",
+  "diagnostic.warningSign": "⚠",
+  "diagnostic.infoSign": "ℹ",
+  "diagnostic.hintSign": "➤",
+  "diagnostic.checkCurrentLine": true,
+  "diagnostic.virtualText": true,
+  "diagnostic.enableMessage": "always",
+  "pairs.enableCharacters": ["(", "[", "{", "'", "\"", "`", "<"],
+  "clangd.path": "clangd",
+  "clangd.arguments": ["--background-index", "--clang-tidy", "--header-insertion=iwyu"],
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.formatting.provider": "black",
+  "java.format.enabled": true,
+  "typescript.format.enabled": true,
+  "javascript.format.enabled": true
+}
+]]
+        vim.fn.writefile(vim.fn.split(config, '\n'), coc_config_path)
+      end
+    end
   },
 
   -- 恢复注释高亮功能
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
-  -- 添加括号自动补全功能
-  { 
-    'windwp/nvim-autopairs',
-    event = 'InsertEnter',
-    opts = {} -- 使用默认配置
+  -- 添加增强的 Markdown 支持
+  {
+    'preservim/vim-markdown',
+    ft = 'markdown',
+    dependencies = { 'godlygeek/tabular' },
+    config = function()
+      -- 配置 vim-markdown
+      vim.g.vim_markdown_folding_disabled = 1      -- 禁用折叠
+      vim.g.vim_markdown_conceal = 0               -- 禁用语法隐藏
+      vim.g.vim_markdown_conceal_code_blocks = 0   -- 不隐藏代码块
+      vim.g.vim_markdown_frontmatter = 1           -- 高亮 frontmatter
+      vim.g.vim_markdown_strikethrough = 1         -- 支持删除线
+      vim.g.vim_markdown_math = 1                  -- 支持数学公式
+    end
+  },
+
+  -- Markdown 实时预览
+  {
+    'iamcco/markdown-preview.nvim',
+    ft = 'markdown',
+    build = function() vim.fn['mkdp#util#install']() end,
+    config = function()
+      vim.g.mkdp_auto_start = 0        -- 不自动打开预览
+      vim.g.mkdp_auto_close = 1        -- 关闭文件时自动关闭预览
+      vim.g.mkdp_refresh_slow = 0      -- 实时刷新预览
+      vim.g.mkdp_browser = ''          -- 使用默认浏览器
+    end,
   },
 
   -- 已移除 mini.nvim 插件
@@ -324,7 +407,7 @@ require('lazy').setup({
         -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
         --  If you are experiencing weird indenting issues, add the language to
         --  the list of additional_vim_regex_highlighting and disabled languages for indent.
-        additional_vim_regex_highlighting = { 'ruby' },
+        additional_vim_regex_highlighting = { 'ruby', 'markdown' }, -- 为 Markdown 添加额外的高亮支持
       },
       indent = { enable = true, disable = { 'ruby' } },
     },
