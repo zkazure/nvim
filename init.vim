@@ -26,7 +26,7 @@ set noshowmode
 set noruler
 set laststatus=0
 set noshowcmd
-colorscheme slate
+" colorscheme slate
 
 " Some basics:
 	nnoremap c "_c
