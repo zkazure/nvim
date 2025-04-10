@@ -1,3 +1,0 @@
-# Minimal
-
-Based on kickstart. 
